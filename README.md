@@ -264,7 +264,8 @@ The following parameters are enforced at the contract and engine level. They are
 | Protocol Swap Fee | **0.066%** | Settlement Contract (`JobberUniversal`) |
 | Yield Distribution Ratio | **33/3** (33% quarterly) | Treasury Contract |
 | Distribution Split | **50/50** (Swappers / LPs) | Treasury Contract |
-| Proof Size Constraints | **Minimum 1,100 bytes** | X-Core Engine (WASM) |
+| Internal Proof Constraint | **Minimum 1,100 bytes** | X-Core Engine (WASM) |
+| On-Chain Size | **160 bytes** | IdentiFI Hook (`hookData`) |
 | Supported Networks | **5 EVM Chains** (Triple RPC Redundancy) | Client Configuration |
 | Session Persistence | **None** (Volatile Memory Only) | Architecture (Enforced) |
 
