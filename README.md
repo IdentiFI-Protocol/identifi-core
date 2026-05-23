@@ -1,154 +1,305 @@
+# IdentiFI Protocol
 
-# 🧬 IdentiFI Protocol: The Sovereign Identity Engine
+### The Sovereign Identity Engine for the Ethereum Virtual Machine
 
-*The First Stateless EVM Privacy Layer for Advanced On-Chain Operations.*
+[![Rust](https://img.shields.io/badge/Rust-1.70+-E05D44.svg?style=flat-square&logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![WebAssembly](https://img.shields.io/badge/WASM-Compiled-654FF0.svg?style=flat-square&logo=webassembly&logoColor=white)](https://webassembly.org/)
+[![EVM](https://img.shields.io/badge/EVM-Compatible-3C3C3D.svg?style=flat-square&logo=ethereum&logoColor=white)](https://ethereum.org/)
+[![Uniswap v4](https://img.shields.io/badge/Uniswap_v4-Hook_Native-FF007A.svg?style=flat-square&logo=uniswap&logoColor=white)](https://uniswap.org/)
+[![License](https://img.shields.io/badge/License-Proprietary-critical.svg?style=flat-square)]()
 
-**"IT'S NOT A WALLET — IT'S A SIGNAL OF POWER."**
+> **"IT'S NOT A WALLET — IT'S A SIGNAL OF POWER."**
 
- 
-[![Rust](https://img.shields.io/badge/Rust-1.70+-orange.svg)](https://www.rust-lang.org/)  
-[![WebAssembly](https://img.shields.io/badge/WebAssembly-Enabled-green.svg)](https://webassembly.org/)  
-[![EVM Compatible](https://img.shields.io/badge/EVM-Compatible-purple.svg)](https://ethereum.org/)
-<img src="https://img.shields.io/badge/License-Proprietary-red.svg" alt="License">
+---
 
-## 🛡️ Core Architecture: The X-Core Engine
+## Table of Contents
 
-IdentiFI is a **Stateless Possession Validation Protocol** designed to solve the "Ownership Dilemma":
+- [Abstract](#abstract)
+- [The Problem](#the-problem)
+- [Core Architecture](#core-architecture)
+- [Execution Flow](#execution-flow)
+- [Stateless Reconciliation Layer](#stateless-reconciliation-layer)
+- [Security Model](#security-model)
+- [Economic Model — The 33/3 Yield Engine](#economic-model--the-333-yield-engine)
+- [Integration Surface](#integration-surface)
+- [Protocol Parameters](#protocol-parameters)
+- [System Requirements](#system-requirements)
+- [License & Intellectual Property](#license--intellectual-property)
 
-- **How to prove control over a cluster of wallets** without exposing private keys or linking addresses publicly on explorers.
-- **Stateless Design (Zero-Footprint)**: Unlike traditional identity protocols, IdentiFI operates in volatile memory. No databases, no logs, no metadata.
-- **The Purge Command**: Upon session termination, all synchronization data is locally destroyed. `[ESC | Terminate]`.
-- **EIP-191 Standard**: High-fidelity cryptographic signatures forge the Master Signal, ensuring full EVM compatibility.
+---
 
-## 🛠️ Technical Workflow
+## Abstract
 
-The logic layer orchestrates data between the **Genesis Node** (your primary identity) and the **Strands** (sub-wallets) to generate a blinded authority proof.
+**IdentiFI** is a **Stateless Possession Validation Protocol** — a sovereign cryptographic engine that enables operators to prove unified control over a cluster of EVM wallets without exposing private keys, linking addresses on public explorers, or relying on any centralized infrastructure.
+
+The protocol operates entirely in volatile memory. There are no databases, no server-side logs, no persistent metadata. Every session terminates with a full cryptographic purge. What remains is only the on-chain proof of an authorized operation — nothing else.
+
+Built on **Rust** (compiled to WebAssembly for client-side execution) and natively integrated with **Uniswap v4 Hooks**, IdentiFI represents a new class of DeFi infrastructure: a privacy-preserving authority layer where validation is sovereign, execution is local, and the chain sees only what it needs to see.
+
+This document serves as the protocol's technical overview. It describes the system architecture, security guarantees, and economic model at a level intended for engineering review, audit evaluation, and institutional due diligence.
+
+---
+
+## The Problem
+
+Current DeFi identity and authorization models operate under a fundamental contradiction:
+
+| Constraint | Status Quo | IdentiFI Resolution |
+|:--|:--|:--|
+| **Multi-Wallet Ownership** | Requires public on-chain linking or centralized registries | Cryptographic cluster proof with zero public linkage |
+| **Session Persistence** | Cookies, databases, JWT tokens — all traceable | Volatile memory only. Full purge on termination |
+| **Authority Verification** | Trust-based (centralized KYC, oracles) | Trustless, client-forged EIP-191 proofs |
+| **Privacy in DeFi Swaps** | Full transaction graph exposure on explorers | Blinded authority payloads via Hook integration |
+| **Infrastructure Dependency** | Server-side validation, API keys, uptime risk | 100% client-side execution via WASM. No servers required |
+
+IdentiFI does not patch these problems. It eliminates the architecture that causes them.
+
+---
+
+## Core Architecture
+
+The IdentiFI engine operates on a three-layer execution model. Each layer is isolated by design, ensuring that no single component holds enough state to reconstruct a user's identity or transaction intent.
+
+```mermaid
+graph TB
+    subgraph CLIENT ["CLIENT-SIDE (Browser / WASM Runtime)"]
+        direction TB
+        A["Genesis Node<br/><i>Primary Identity</i>"] --> B["X-Core Engine<br/><i>Rust / WebAssembly</i>"]
+        B --> C["Strand Synchronization<br/><i>EIP-191 Signature Binding</i>"]
+        C --> D["Master Signal<br/><i>Blinded Authority Proof</i>"]
+    end
+
+    subgraph CHAIN ["ON-CHAIN (EVM Settlement)"]
+        direction TB
+        E["IdentiFI Hook<br/><i>Uniswap v4 — beforeSwap</i>"]
+        F["JobberUniversal Router<br/><i>Trade Settlement</i>"]
+        G["Treasury Contract<br/><i>Fee Aggregation</i>"]
+        E --> F
+        F --> G
+    end
+
+    D -->|"Stateless Payload<br/>(hookData)"| E
+
+    style CLIENT fill:#0a0a0a,stroke:#00d9ff,stroke-width:2px,color:#e0e0e0
+    style CHAIN fill:#0a0a0a,stroke:#FF007A,stroke-width:2px,color:#e0e0e0
+    style A fill:#111,stroke:#00d9ff,color:#fff
+    style B fill:#111,stroke:#00d9ff,color:#fff
+    style C fill:#111,stroke:#00d9ff,color:#fff
+    style D fill:#111,stroke:#00ffaa,color:#fff
+    style E fill:#111,stroke:#FF007A,color:#fff
+    style F fill:#111,stroke:#FF007A,color:#fff
+    style G fill:#111,stroke:#FF007A,color:#fff
+```
+
+### Layer I — Client-Side Proof Forging
+
+The **X-Core Engine** is the protocol's computational nucleus. Written in Rust and compiled to WebAssembly, it executes entirely within the user's browser runtime. No network calls are made during proof generation.
+
+- **Genesis Node**: The operator's primary wallet — the root of the identity cluster.
+- **Strands**: Secondary wallets bound to the Genesis Node via individual EIP-191 cryptographic signatures.
+- **Master Signal**: The final blinded authority payload, generated by cryptographically synchronizing all Strand signatures under the Genesis Node's sovereign key.
+
+### Layer II — On-Chain Validation (Hook Gatekeeper)
+
+The `IdentiFI Hook` is deployed as a Uniswap v4 `beforeSwap` callback. It acts as a **stateless gatekeeper**: it receives the Master Signal via `hookData`, validates the cryptographic integrity of the proof, and either authorizes or reverts the operation. The Hook stores nothing. It validates and exits.
+
+### Layer III — Settlement & Treasury
+
+Upon successful validation, the `JobberUniversal` router settles the trade with maximum gas efficiency. A fixed protocol fee of **0.066%** is captured at the settlement layer and routed to the `IdentiFITreasury` contract for downstream distribution.
+
+---
+
+## Execution Flow
+
+The end-to-end lifecycle of a single IdentiFI-authorized operation:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Operator as Operator (Browser)
+    participant Engine as X-Core Engine (WASM)
+    participant Wallet as Signing Provider
+    participant Hook as IdentiFI Hook (EVM)
+    participant Router as JobberUniversal (EVM)
+    participant Treasury as Treasury Contract
+
+    Operator->>Engine: Initialize Genesis + Bind Strands
+    Engine->>Engine: Forge Master Signal (Blinded Proof)
+    Engine-->>Operator: Return Stateless Payload
+    Operator->>Wallet: Request Transaction Signature
+    Wallet-->>Operator: Signed Transaction
+    Operator->>Router: Submit Swap + hookData
+    Router->>Hook: beforeSwap Callback
+    Hook->>Hook: Validate Proof Integrity & Signature
+    alt AUTHORIZED
+        Hook-->>Router: Proceed with Settlement
+        Router->>Treasury: Route 0.066% Protocol Fee
+        Router-->>Operator: Operation Settled
+    else UNAUTHORIZED
+        Hook-->>Router: Revert — UNAUTHORIZED_AUTHORITY_SIGNAL
+    end
+    Note over Engine: THE PURGE — All session state destroyed
+```
+
+> **The Purge**: Upon settlement or session termination, all in-memory state — including the Master Signal, Strand signatures, and any intermediate cryptographic material — is irreversibly destroyed. This is not a feature. It is the architecture.
+
+---
+
+## Stateless Reconciliation Layer
+
+Traditional protocols depend on databases to reconcile transactions and attribute revenue. IdentiFI eliminates this dependency entirely through **Fractional Value Reconciliation** — a deterministic, on-chain attribution mechanism.
+
+### How It Works
+
+- **Deterministic Fractional Signatures**: Each transaction processed through the protocol receives a unique sub-decimal value attribution (e.g., `132.333333 USDC`). This fractional component acts as a cryptographic pointer, enabling precise reconciliation against blockchain state without any off-chain storage.
+
+- **Privacy-Preserving Accounting**: Public explorers display only standard ERC-20 transfers. The fractional attribution is invisible to passive observers, preventing metadata linkage and transaction graph analysis.
+
+- **Redundant RPC Mesh**: Signal availability is maintained through triple-node redundancy (3 independent RPC endpoints per network) across 5 major EVM chains. This architecture ensures operational continuity even during infrastructure degradation events.
+
+---
+
+## Security Model
+
+IdentiFI's security posture is grounded in **engineering discipline**, not obscurity. Every guarantee described below is a direct consequence of the system's architectural constraints.
+
+### Cryptographic Guarantees
+
+| Mechanism | Implementation | Threat Mitigated |
+|:--|:--|:--|
+| **EIP-191 Signed Proofs** | Each Strand produces a standard Ethereum signature binding it to the Genesis Node | Forged authority claims |
+| **Temporal Binding** | Proofs are anchored to strict temporal windows derived from on-chain block state | Replay attacks |
+| **Nonce Salting** | One-time nonces derived from `recentBlockHash + validatorTimestamp` | Signal interception & reuse |
+| **Proof Size Enforcement** | Master Signal payloads are constrained to strict byte boundaries | Injection & overflow attacks |
+| **Memory Isolation** | All cryptographic operations execute within the WASM sandbox — no DOM access, no network I/O | Side-channel leakage |
+
+### Architectural Guarantees
+
+- **Zero Persistence**: No database, no cache, no local storage, no cookies. The system is incapable of retaining state beyond the active session.
+- **Client-Side Sovereignty**: Proof generation occurs exclusively in the operator's browser. The protocol has no server component that touches cryptographic material.
+- **Validator-Executor Separation**: The on-chain Hook (validator) and Router (executor) are architecturally decoupled. The Hook cannot settle trades; the Router cannot validate proofs. Neither holds state.
+- **The Purge Protocol**: Session termination triggers immediate, irreversible destruction of all in-memory cryptographic material. This includes the Master Signal, all Strand signatures, and any intermediate computation artifacts.
+
+### What We Don't Do
+
+- We do not rely on trusted third parties, oracles, or off-chain attestation services.
+- We do not store, transmit, or log any user-identifying information at any layer.
+- We do not expose internal proof-generation logic. The WASM binary is a compiled, sealed execution unit.
+
+---
+
+## Economic Model — The 33/3 Yield Engine
+
+IdentiFI operates on a **Pure Utility Economy**. There is no native token. There is no speculation vector. Protocol revenue is generated exclusively through usage fees and redistributed to validated participants in real assets.
+
+### Revenue Streams
+
+The protocol captures value through three primary channels:
+
+| Channel | Description |
+|:--|:--|
+| **IdentiFI Core (Generator)** | Premium proof generation and advanced cluster management via the sovereign portal |
+| **SDK Integration Fees** | Fee-sharing with partner dApps utilizing the IdentiFI Authority Layer for swap gating |
+| **Hook Settlement Fees** | Automated fee capture from every swap routed through IdentiFI-enabled Uniswap v4 pools |
+
+### The 33/3 Distribution Model
 
 ```
-[ GENESIS NODE ]
-      │
-      ▼ 1. Orchestrate
-┌───────────────┐
-│ identiFI CORE │
-└───────┬───────┘
-        │
-┌───────┴───────┬───────┐
-│               │       │
-▼ 2. Sig        ▼ 2. Sig  ▼ 2. Sig
-[ STRAND 01 ] [ STRAND 02 ] [ STRAND nn ]
-│               │       │
-└───────┬───────┴───────┘
-        │
-        ▼ 3. Cryptographic Sync
-┌───────────────────────┐
-│     MASTER SIGNAL     │
-└───────────┬───────────┘
-            │
-            ▼ 4. Stateless Payload
-┌───────────────────────┐
-│     SDKs / HOOKs      │
-└───────────┬───────────┘
-            │
-            ▼ 5. Validation & Execute
-    [ AUTHORIZED OPERATION ]
+┌─────────────────────────────────────────────────┐
+│           GROSS PROTOCOL REVENUE                │
+│     (Core + SDK + Hook Settlement Fees)         │
+└────────────────────┬────────────────────────────┘
+                     │
+                     ▼
+        ┌────────────────────────┐
+        │   33% → Distribution   │
+        │   Pool (Quarterly)     │
+        └───────────┬────────────┘
+                    │
+            ┌───────┴───────┐
+            ▼               ▼
+     ┌────────────┐  ┌────────────┐
+     │  Validated  │  │ Liquidity  │
+     │  Swappers   │  │ Providers  │
+     │   (50%)     │  │   (50%)    │
+     └────────────┘  └────────────┘
+
+        ┌────────────────────────┐
+        │   67% → Protocol       │
+        │   Treasury (R&D +      │
+        │   Operations)          │
+        └────────────────────────┘
 ```
 
-*Note: All signals generated by the protocol engine can be immediately or subsequently manually audited in the official IdentiFI domain.*
+### Distribution Mechanics
 
-## ⛓️‍💥 The Fractional Reconciliation Protocol (No-DB Architecture)
+- **Quarterly Epochs**: Revenue distribution occurs on a fixed 3-month cycle, ensuring sustainable and predictable yield.
+- **Anti-Sybil Enforcement**: Only operators validated through the X-Core Engine are eligible for distribution. The same stateless proof mechanism that gates swaps also gates yield claims — preventing bot farms and sybil attacks on the reward pool.
+- **Real Asset Settlement**: All distributions are denominated and settled in **USDC**. No synthetic tokens, no vesting, no governance theater.
+- **Privacy-Preserving Claims**: The claim process maintains the Master Signal's integrity. There is no linkage between the reward transaction and the operator's cluster identity.
 
-To eliminate centralized databases and ensure 100% Stateless infrastructure, IdentiFI uses on-chain verification via **Fractional Value Reconciliation**.
+---
 
-- **Deterministic Attribution**: Every transaction gets a unique sub-decimal fractional signature (e.g., `132.333333 USDC`). This acts as a cryptographic pointer for reconciliation via blockchain state and RPC redundancy.
-- **Privacy-First Accounting**: Public explorers see only standard transactions, preventing metadata linkage.
-- **Redundant RPC Mesh**: Triple-node redundancy (3 RPCs per network) across 5 major EVM chains ensures signal availability even during infrastructure failures.
+## Integration Surface
 
-## 🌑 The Deep Stack (Rust & Entropy)
+IdentiFI exposes a minimal, high-performance integration surface for third-party dApps and liquidity protocols.
 
-Our engine is built on **Ephemeral Verifiability**, not trust.
+| Capability | Technical Specification |
+|:--|:--|
+| **WASM Proof Validation** | Client-side verification at native speed. Zero network latency |
+| **Universal Authority Layer** | Cross-pool liquidity authorization without fund movement or wallet linking |
+| **SkinWalker Protocol** | Instant cryptographic signature rotation on cluster compromise detection |
+| **Hook-Native Settlement** | Direct integration with Uniswap v4 `beforeSwap` lifecycle for atomic validation |
 
-### I. Anti-Replay & Network Entropy
-- **Network-Pulse Signaling**: Proofs bound to strict temporal windows; intercepted signals become obsolete in milliseconds.
-- **Unique Nonce Salting**: EIP-191 signatures salted with one-time nonces derived from chain state (Recent Block Hash + Validator Timestamp).
+> Integration documentation and SDK access are available under NDA. Contact the IdentiFI engineering team for evaluation access.
 
-### II. Why Rust? (Performance & Memory Safety)
-The core compiles to WebAssembly for:
-- **Memory Safety**: Prevents leaks that could expose key fragments.
-- **Computational Determinism**: Identical proof generation across environments.
-- **Low-Level Crypto**: Direct secp256k1 for efficiency.
+---
 
-## 📋 Operational Guide
+## Protocol Parameters
 
-1. **[01] GENESIS**: Connect primary identity node (root of your cluster).
-2. **[02] STRAND SLOTS**: Reserve sub-wallet count.
-3. **[03] SUB-WALLETS**: Generate disposable EIP-191 signatures.
-4. **[04] LINK STRANDS**: Sync nodes cryptographically.
-5. **[05] VALIDATION**: Set duration and seal proof via Master Node.
-6. **[06] MASTER SIGNAL**: Download payload. Active for authorized dApps.
+The following parameters are enforced at the contract and engine level. They are not configurable at runtime.
 
-## 🧩 DEX Integration
+| Parameter | Value | Enforcement Layer |
+|:--|:--|:--|
+| Protocol Swap Fee | **0.066%** | Settlement Contract (`JobberUniversal`) |
+| Yield Distribution Ratio | **33/3** (33% quarterly) | Treasury Contract |
+| Distribution Split | **50/50** (Swappers / LPs) | Treasury Contract |
+| Proof Size Constraints | **Minimum 1,100 bytes** | X-Core Engine (WASM) |
+| Supported Networks | **5 EVM Chains** (Triple RPC Redundancy) | Client Configuration |
+| Session Persistence | **None** (Volatile Memory Only) | Architecture (Enforced) |
 
-IdentiFI SDK as a high-performance **Audit Layer (Pre-Swap)** for authority verification.
+---
 
-| Feature              | Technical Advantage                          |
-|----------------------|----------------------------------------------|
-| WASM Validation     | Local-speed verification, zero latency.     |
-| Universal Authority  | Cross-pool liquidity without fund movement. |
-| SkinWalker Protocol  | Instant signature rotation on breach.        |
-| Protocol Fees | All swaps via SDK, Hooks or dashboard have a fixed fee of 0.066%. |
+## System Requirements
 
-## 💎 The Yield Sovereignty (Real Yield Model)
+| Dependency | Minimum Version | Purpose |
+|:--|:--|:--|
+| Node.js | 16+ | Development toolchain & build orchestration |
+| Rust | 1.70+ | X-Core Engine compilation |
+| wasm-pack | Latest | Rust → WebAssembly compilation target |
+| Web3 Wallet | MetaMask or compatible | EIP-191 signature provider |
 
-IdentiFI Protocol operates on a Pure Utility Economy. 
+---
 
-By eliminating native tokens, we remove speculation and focus on redistributing protocol revenue to actual participants.
+## License & Intellectual Property
 
-### I. The 33/3 Distribution Logic
+IdentiFI Protocol is **proprietary software**. All source code, compiled binaries, cryptographic algorithms, and architectural designs are the exclusive intellectual property of the IdentiFI engineering team.
 
-- **Split Mechanism**: 33% of all gross revenue generated by the IdentiFI Core (Generator), SDK Fees, and Hooks is redirected to a centralized Treasury Contract.
+- **Source Code**: Not licensed for redistribution, modification, or derivative works without explicit written authorization.
+- **WASM Binaries**: Compiled, sealed execution units. Reverse engineering, decompilation, or binary analysis is strictly prohibited.
+- **Documentation**: This document is provided for technical evaluation purposes only. Reproduction requires authorization.
 
-- **Quarterly Epochs**: Distributions occur every 3 months, ensuring a stable and sustainable yield cycle.
+For security disclosures, see `SECURITY.md`.  
+For licensing inquiries, contact the IdentiFI engineering team.
 
-- **Anti-Bot Validation**: Only "Real Users" validated via our X-Core Engine are eligible for the split, preventing sybil attacks on the yield pool.
+---
 
-### II. Revenue Streams
-
-The protocol's heartbeat is powered by three main funnels:
-
-- **IdentiFI Site**: Premium proof generation and advanced cluster management.
-
-- **SDK Integration**: Swap-fee sharing for dApps utilizing the IdentiFI Authority Layer.
-
-- **Hooks**: Automated yield capture from privacy-centric liquidity pools.
-
-### III. Claiming Your Power
-
-Instead of automated airdrops that could compromise privacy, users utilize the IdentiFI SDK to:
-
-- **Prove Utility**: Generate a stateless proof of protocol usage over the quarter.
-
-- **Reclaim Value**: Trigger a direct claim from the Treasury in USDC (Real Assets).
-
-- **Stay Anonymous**: The claim process maintains the Master Signal's integrity, ensuring no linkage between the reward and the user's cluster identity.
-
-
-##
-**Status: GLOBAL ACTIVE**  
-**Core: IdentiFI Rust Engine (v1.01)**  
-**Compliance: 100% STATELESS / ANONYMOUS**
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Node.js 16+
-- Rust 1.70+ with `wasm-pack`
-- MetaMask or compatible wallet
-
-## 🤝 Contributing
-- Report issues or PRs welcome.
-- See SECURITY.md for responsible disclosure.
-
-## 📜 License
- See LICENSE.
-
-© 2026 IdentiFI Protocol | The First Stateless EVM Privacy Engine
+<p align="center">
+  <br/>
+  <strong>IdentiFI Protocol</strong><br/>
+  <em>The First Stateless EVM Privacy Engine</em><br/>
+  <br/>
+  <code>Status: OPERATIONAL</code>&nbsp;&nbsp;|&nbsp;&nbsp;<code>Engine: X-Core v1.01 (Rust/WASM)</code>&nbsp;&nbsp;|&nbsp;&nbsp;<code>Compliance: 100% Stateless</code>
+  <br/><br/>
+  © 2026 IdentiFI Protocol — All Rights Reserved.
+</p>
